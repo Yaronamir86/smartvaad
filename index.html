@@ -160,15 +160,6 @@ body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min
 </style>
 <link rel="icon" type="image/png" href="assets/favicon.png">
 </head>
-<script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js")
-        .then((reg) => console.log("SW registered:", reg.scope))
-        .catch((err) => console.error("SW registration failed:", err));
-    });
-  }
-</script>
 <body>
 
 <div id="loader"><div class="ld"></div><div class="ld"></div><div class="ld"></div></div>
@@ -443,6 +434,15 @@ async function doRegister(){
 
 function showErr(el,msg){el.textContent='⚠️ '+msg;el.classList.add('show');}
 document.addEventListener('keydown',e=>{if(e.key==='Enter'){if(document.getElementById('tab-login').classList.contains('on'))doLogin();else doRegister();}});
+</script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js")
+        .then((reg) => console.log("SW registered:", reg.scope))
+        .catch((err) => console.error("SW registration failed:", err));
+    });
+  }
 </script>
 </body>
 </html>
