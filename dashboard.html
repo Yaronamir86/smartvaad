@@ -1144,7 +1144,7 @@ auth.onAuthStateChanged(async user => {
 //  LOAD BUILDING
 // ════════════════════════════════════════════════════
 async function loadBuilding() {
-  const snap = await db.collection('buildings').where('adminUid','==',currentUser.uid).orderBy('createdAt').get();
+  const snap = await db.collection('buildings').where('adminUid','==',currentUser.uid).get();
   if (snap.empty) { window.location.href = 'index.html'; return; }
 
   // Populate building selector
