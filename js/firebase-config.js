@@ -3,13 +3,13 @@
 //  הדבק כאן את פרטי הפרויקט שלך מ-Firebase Console
 // ============================================================
 
-const firebaseConfig = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT.firebaseapp.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId:             "YOUR_APP_ID"
+const firebaseConfig = {apiKey: "AIzaSyAxUn5V6pKAzkCA5xp-yLxkbd520EF-Yrs",
+  authDomain: "smartvaad-f42f1.firebaseapp.com",
+  projectId: "smartvaad-f42f1",
+  storageBucket: "smartvaad-f42f1.firebasestorage.app",
+  messagingSenderId: "19866240404",
+  appId: "1:19866240404:web:f60d63118018b88ef5bb81",
+  measurementId: "G-FRENZT81YV"
 };
 
 // Initialize Firebase
