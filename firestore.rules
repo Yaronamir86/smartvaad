@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── HELPERS ───────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+    function uid() {
+      return request.auth.uid;
+    }
+    function buildingData(buildingId) {
+      return get(/databases/$(database)/documents/buildings/$(buildingId)).data;
+    }
+    function isAdmin(buildingId) {
+      return isAuth() && buildingData(buildingId).adminUid == uid();
+    }
+    function isMember(buildingId) {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/buildings/$(buildingId)/members/$(uid()));
+    }
+    function isAdminOrMember(buildingId) {
+      return isAdmin(buildingId) || isMember(buildingId);
+    }
+
+    // ─── BUILDINGS ─────────────────────────────────────────
+    match /buildings/{buildingId} {
+      allow read:            if isAdminOrMember(buildingId);
+      allow create:          if isAuth()
+                                && request.resource.data.adminUid == uid()
+                                && request.resource.data.keys().hasAll(['name','adminUid','isPremium','monthlyFee']);
+      allow update, delete:  if isAdmin(buildingId);
+
+      // MEMBERS
+      match /members/{memberId} {
+        allow read:   if isAdmin(buildingId) || uid() == memberId;
+        allow write:  if isAdmin(buildingId);
+        allow create: if isAuth() && uid() == memberId;
+      }
+
+      // TENANTS — admin writes, members read
+      match /tenants/{docId} {
+        allow read:          if isAdminOrMember(buildingId);
+        allow write:         if isAdmin(buildingId);
+      }
+
+      // PAYMENTS — admin only
+      match /payments/{docId} {
+        allow read, write:   if isAdmin(buildingId);
+      }
+
+      // MESSAGES — admin writes, members read
+      match /messages/{docId} {
+        allow read:          if isAdminOrMember(buildingId);
+        allow write:         if isAdmin(buildingId);
+      }
+
+      // REQUESTS — members can create, admin updates
+      match /requests/{docId} {
+        allow read:          if isAdminOrMember(buildingId);
+        allow create:        if isAdminOrMember(buildingId);
+        allow update, delete:if isAdmin(buildingId);
+      }
+
+      // DOCUMENTS — admin writes, members read
+      match /documents/{docId} {
+        allow read:          if isAdminOrMember(buildingId);
+        allow write:         if isAdmin(buildingId);
+      }
+
+      // BULLETIN — members can post, admin can delete
+      match /bulletin/{docId} {
+        allow read:          if isAdminOrMember(buildingId);
+        allow create:        if isAdminOrMember(buildingId);
+        allow update, delete:if isAdmin(buildingId);
+      }
+
+      // ACTIVITY — admin only
+      match /activity/{docId} {
+        allow read, write:   if isAdmin(buildingId);
+      }
+    }
+
+    // ─── INVITES ───────────────────────────────────────────
+    match /invites/{token} {
+      allow read:   if isAuth();
+      allow create: if isAuth() && isAdmin(request.resource.data.buildingId);
+      allow update: if isAuth();
+      allow delete: if isAuth() && isAdmin(resource.data.buildingId);
+    }
+
+    // ─── USER PROFILES ─────────────────────────────────────
+    match /users/{userId} {
+      allow read:  if isAuth();
+      allow write: if isAuth() && uid() == userId;
+    }
+  }
+}

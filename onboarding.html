@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartVaad – הגדרת הבניין</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+:root {
+  --navy:#0f1923;--card:#1a2840;--card2:#1f3050;
+  --accent:#00c896;--accent2:#00a878;--blue:#4a9eff;
+  --red:#ff4f5e;--gold:#f5a623;--text:#e8edf5;
+  --muted:#7a90a8;--border:rgba(255,255,255,0.07);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);direction:rtl;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(0,200,150,.12) 0%,transparent 60%),radial-gradient(ellipse 40% 40% at 80% 80%,rgba(74,158,255,.08) 0%,transparent 55%);pointer-events:none;}
+
+.wrap{position:relative;z-index:1;width:100%;max-width:540px;}
+
+.logo{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:28px;}
+.logo-icon{width:42px;height:42px;background:linear-gradient(135deg,var(--accent),var(--blue));border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 0 22px rgba(0,200,150,.35);}
+.logo-name{font-size:22px;font-weight:900;background:linear-gradient(135deg,var(--accent),#fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+
+/* PROGRESS BAR */
+.progress-bar{height:4px;background:rgba(255,255,255,.07);border-radius:4px;margin-bottom:28px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--blue));border-radius:4px;transition:width .4s ease;}
+
+/* STEP LABELS */
+.step-labels{display:flex;justify-content:space-between;margin-bottom:24px;}
+.step-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);text-align:center;flex:1;transition:color .3s;}
+.step-lbl.active{color:var(--accent);}
+.step-lbl.done{color:rgba(0,200,150,.5);}
+
+/* CARD */
+.card{background:rgba(26,40,64,.92);border:1px solid var(--border);border-radius:20px;padding:32px;backdrop-filter:blur(20px);}
+
+/* STEPS */
+.step{display:none;}
+.step.active{display:block;animation:fadeUp .35s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.step-icon{font-size:44px;margin-bottom:14px;}
+.step-title{font-size:22px;font-weight:900;margin-bottom:6px;}
+.step-sub{font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.6;}
+
+/* FORM */
+.fg{margin-bottom:14px;}
+.fl{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;}
+.fi{width:100%;background:rgba(0,0,0,.3);border:1px solid var(--border);color:var(--text);font-family:'Heebo',sans-serif;font-size:15px;padding:12px 14px;border-radius:10px;outline:none;transition:border-color .15s;}
+.fi:focus{border-color:rgba(0,200,150,.45);}
+.fi::placeholder{color:var(--muted);}
+.fi-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fi-hint{font-size:12px;color:var(--muted);margin-top:5px;}
+
+/* OPTION CARDS */
+.option-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;}
+.opt-card{
+  background:rgba(0,0,0,.2);border:2px solid var(--border);
+  border-radius:12px;padding:14px;cursor:pointer;transition:all .15s;text-align:center;
+}
+.opt-card:hover{border-color:rgba(0,200,150,.35);background:rgba(0,200,150,.04);}
+.opt-card.selected{border-color:var(--accent);background:rgba(0,200,150,.08);}
+.opt-ico{font-size:24px;margin-bottom:6px;}
+.opt-label{font-size:13px;font-weight:700;}
+.opt-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* TENANT ROWS */
+.tenant-rows{margin-bottom:14px;}
+.tenant-row{
+  display:grid;grid-template-columns:1fr 1fr auto;
+  gap:8px;margin-bottom:8px;align-items:center;
+}
+.tenant-row .del-btn{
+  width:32px;height:32px;border-radius:8px;
+  background:rgba(255,79,94,.1);border:1px solid rgba(255,79,94,.2);
+  color:var(--red);cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;flex-shrink:0;
+}
+.tenant-row .del-btn:hover{background:rgba(255,79,94,.2);}
+.add-row-btn{
+  background:transparent;border:1px dashed rgba(0,200,150,.35);
+  color:var(--accent);font-family:'Heebo',sans-serif;
+  font-size:13px;font-weight:600;
+  padding:9px;border-radius:9px;cursor:pointer;width:100%;
+  transition:all .15s;
+}
+.add-row-btn:hover{border-color:var(--accent);background:rgba(0,200,150,.05);}
+
+/* BUTTONS */
+.btn-row{display:flex;gap:10px;margin-top:8px;}
+.btn{flex:1;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#000;font-family:'Heebo',sans-serif;font-size:15px;font-weight:800;padding:13px;border-radius:11px;cursor:pointer;transition:all .2s;box-shadow:0 4px 16px rgba(0,200,150,.25);}
+.btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,200,150,.38);}
+.btn:disabled{opacity:.5;pointer-events:none;}
+.btn-back{flex:0 0 44px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Heebo',sans-serif;font-size:18px;padding:11px;border-radius:11px;cursor:pointer;transition:all .15s;}
+.btn-back:hover{border-color:rgba(255,255,255,.15);color:var(--text);}
+.btn-skip{background:transparent;border:none;color:var(--muted);font-family:'Heebo',sans-serif;font-size:13px;cursor:pointer;padding:10px;text-decoration:underline;text-underline-offset:3px;}
+.btn-skip:hover{color:var(--text);}
+
+/* SUMMARY CARD */
+.summary-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.summary-item:last-child{border-bottom:none;}
+.sum-ico{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.sum-label{font-size:12px;color:var(--muted);}
+.sum-val{font-size:14px;font-weight:700;}
+
+/* SUCCESS */
+.confetti{font-size:52px;text-align:center;margin-bottom:16px;animation:pop .5s ease;}
+@keyframes pop{0%{transform:scale(0.5)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <div class="logo-icon">🏢</div>
+    <div class="logo-name">SmartVaad</div>
+  </div>
+
+  <div class="progress-bar"><div class="progress-fill" id="prog" style="width:20%"></div></div>
+
+  <div class="step-labels">
+    <span class="step-lbl active" id="lbl-1">פרטי בניין</span>
+    <span class="step-lbl"        id="lbl-2">הגדרות</span>
+    <span class="step-lbl"        id="lbl-3">דיירים</span>
+    <span class="step-lbl"        id="lbl-4">סיכום</span>
+    <span class="step-lbl"        id="lbl-5">מוכן!</span>
+  </div>
+
+  <div class="card">
+
+    <!-- ══ STEP 1: BUILDING DETAILS ══ -->
+    <div class="step active" id="step-1">
+      <div class="step-icon">🏢</div>
+      <div class="step-title">קצת על הבניין שלך</div>
+      <div class="step-sub">נתחיל בפרטים הבסיסיים. אפשר לשנות אחר כך.</div>
+      <div class="fg"><label class="fl">שם / כתובת הבניין *</label><input class="fi" id="b-name" placeholder="רח' הרצל 10, תל אביב"></div>
+      <div class="fg"><label class="fl">עיר</label><input class="fi" id="b-city" placeholder="תל אביב"></div>
+      <div class="fi-row">
+        <div class="fg"><label class="fl">מספר קומות</label><input class="fi" id="b-floors" type="number" placeholder="8" min="1"></div>
+        <div class="fg"><label class="fl">מספר דירות</label><input class="fi" id="b-units" type="number" placeholder="24" min="1"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="goStep(2)">המשך →</button>
+      </div>
+    </div>
+
+    <!-- ══ STEP 2: SETTINGS ══ -->
+    <div class="step" id="step-2">
+      <div class="step-icon">⚙️</div>
+      <div class="step-title">הגדרות ועד בית</div>
+      <div class="step-sub">הגדר את דמי הועד ומחזור הגביה.</div>
+      <div class="fg">
+        <label class="fl">דמי ועד חודשיים לדייר (₪)</label>
+        <input class="fi" id="b-fee" type="number" placeholder="175" value="175" min="0">
+        <div class="fi-hint">סכום בסיסי — ניתן לשנות לכל דייר בנפרד</div>
+      </div>
+      <div class="fg">
+        <label class="fl">יום גביה בחודש</label>
+        <input class="fi" id="b-day" type="number" placeholder="1" value="1" min="1" max="28">
+        <div class="fi-hint">היום בחודש שבו מצפים לתשלום</div>
+      </div>
+      <div class="fg">
+        <label class="fl">שם ועד הבית (לתצוגה)</label>
+        <input class="fi" id="b-admin-name" placeholder="ישראל ישראלי">
+      </div>
+      <div class="fg">
+        <label class="fl">טלפון ועד הבית</label>
+        <input class="fi" id="b-admin-phone" type="tel" placeholder="050-0000000">
+      </div>
+      <div class="btn-row">
+        <button class="btn-back" onclick="goStep(1)">←</button>
+        <button class="btn" onclick="goStep(3)">המשך →</button>
+      </div>
+    </div>
+
+    <!-- ══ STEP 3: TENANTS ══ -->
+    <div class="step" id="step-3">
+      <div class="step-icon">👥</div>
+      <div class="step-title">הוסף דיירים ראשונים</div>
+      <div class="step-sub">הוסף דיירים ידנית עכשיו, או דלג ותזמין אותם מאוחר יותר עם קישור.</div>
+
+      <div class="tenant-rows" id="tenant-rows">
+        <div class="tenant-row" id="tr-0">
+          <input class="fi" placeholder="שם הדייר" data-field="name">
+          <input class="fi" placeholder="דירה" data-field="apt">
+          <button class="del-btn" onclick="removeRow(0)">✕</button>
+        </div>
+      </div>
+      <button class="add-row-btn" onclick="addRow()">+ הוסף דייר נוסף</button>
+
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn-back" onclick="goStep(2)">←</button>
+        <button class="btn" onclick="goStep(4)">המשך →</button>
+      </div>
+      <div style="text-align:center;margin-top:8px">
+        <button class="btn-skip" onclick="goStep(4)">דלג — אזמין דיירים מאוחר יותר</button>
+      </div>
+    </div>
+
+    <!-- ══ STEP 4: SUMMARY ══ -->
+    <div class="step" id="step-4">
+      <div class="step-icon">📋</div>
+      <div class="step-title">סיכום לפני יצירה</div>
+      <div class="step-sub">כל נראה טוב? לחץ "צור בניין" ותוך שניות הכל יהיה מוכן.</div>
+
+      <div style="margin-bottom:20px">
+        <div class="summary-item">
+          <div class="sum-ico" style="background:rgba(0,200,150,.1)">🏢</div>
+          <div><div class="sum-label">שם הבניין</div><div class="sum-val" id="sum-name">–</div></div>
+        </div>
+        <div class="summary-item">
+          <div class="sum-ico" style="background:rgba(74,158,255,.1)">📍</div>
+          <div><div class="sum-label">עיר</div><div class="sum-val" id="sum-city">–</div></div>
+        </div>
+        <div class="summary-item">
+          <div class="sum-ico" style="background:rgba(245,166,35,.1)">💳</div>
+          <div><div class="sum-label">דמי ועד</div><div class="sum-val" id="sum-fee">–</div></div>
+        </div>
+        <div class="summary-item">
+          <div class="sum-ico" style="background:rgba(155,89,255,.1)">👥</div>
+          <div><div class="sum-label">דיירים להוספה</div><div class="sum-val" id="sum-tenants">–</div></div>
+        </div>
+        <div class="summary-item">
+          <div class="sum-ico" style="background:rgba(0,200,150,.1)">📅</div>
+          <div><div class="sum-label">יום גביה</div><div class="sum-val" id="sum-day">–</div></div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-back" onclick="goStep(3)">←</button>
+        <button class="btn" id="create-btn" onclick="createBuilding()">צור את הבניין שלי 🚀</button>
+      </div>
+    </div>
+
+    <!-- ══ STEP 5: SUCCESS ══ -->
+    <div class="step" id="step-5">
+      <div class="confetti">🎉</div>
+      <div style="text-align:center">
+        <div class="step-title" style="justify-content:center">הבניין נוצר בהצלחה!</div>
+        <div class="step-sub" id="success-msg">ברוך הבא ל-SmartVaad</div>
+      </div>
+
+      <div style="background:rgba(0,200,150,.07);border:1px solid rgba(0,200,150,.2);border-radius:12px;padding:16px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">🚀 הצעדים הבאים:</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.8">
+          ✅ הזמן דיירים עם קישור ייחודי<br>
+          ✅ שלח את הודעת הפתיחה הראשונה<br>
+          ✅ רשום את תשלומי ועד הבית הראשונים
+        </div>
+      </div>
+
+      <button class="btn" onclick="window.location.href='dashboard.html'">כניסה ללוח הבקרה →</button>
+    </div>
+
+  </div><!-- /card -->
+</div>
+
+<script src="js/firebase-config.js"></script>
+<script>
+let currentStep = 1;
+let rowCount    = 1;
+let createdBuildingId = null;
+
+// ── AUTH GUARD ──
+auth.onAuthStateChanged(user => {
+  if (!user) window.location.href = 'index.html';
+});
+
+// ── NAVIGATION ──
+function goStep(n) {
+  if (n > currentStep && !validateStep(currentStep)) return;
+
+  if (n === 4) buildSummary();
+
+  document.getElementById('step-' + currentStep).classList.remove('active');
+  currentStep = n;
+  document.getElementById('step-' + currentStep).classList.add('active');
+
+  // Progress bar: 5 steps → 20% each
+  document.getElementById('prog').style.width = (n * 20) + '%';
+
+  // Step labels
+  for (let i = 1; i <= 5; i++) {
+    const lbl = document.getElementById('lbl-' + i);
+    if (!lbl) continue;
+    lbl.classList.toggle('active', i === n);
+    lbl.classList.toggle('done',   i < n);
+  }
+}
+
+// ── VALIDATE ──
+function validateStep(n) {
+  if (n === 1) {
+    const name = document.getElementById('b-name').value.trim();
+    if (!name) { alert('נא להזין שם / כתובת הבניין'); return false; }
+  }
+  return true;
+}
+
+// ── TENANT ROWS ──
+function addRow() {
+  const id  = rowCount++;
+  const row = document.createElement('div');
+  row.className = 'tenant-row';
+  row.id = 'tr-' + id;
+  row.innerHTML = `
+    <input class="fi" placeholder="שם הדייר" data-field="name">
+    <input class="fi" placeholder="דירה" data-field="apt">
+    <button class="del-btn" onclick="removeRow(${id})">✕</button>`;
+  document.getElementById('tenant-rows').appendChild(row);
+}
+
+function removeRow(id) {
+  const el = document.getElementById('tr-' + id);
+  if (el) el.remove();
+}
+
+function collectTenants() {
+  const rows = document.querySelectorAll('.tenant-row');
+  const out  = [];
+  rows.forEach(row => {
+    const name = row.querySelector('[data-field="name"]').value.trim();
+    const apt  = row.querySelector('[data-field="apt"]').value.trim();
+    if (name) out.push({ name, apartment: apt });
+  });
+  return out;
+}
+
+// ── BUILD SUMMARY ──
+function buildSummary() {
+  document.getElementById('sum-name').textContent    = document.getElementById('b-name').value || '–';
+  document.getElementById('sum-city').textContent    = document.getElementById('b-city').value || '–';
+  document.getElementById('sum-fee').textContent     = '₪' + (document.getElementById('b-fee').value || 175) + ' / חודש';
+  document.getElementById('sum-day').textContent     = 'יום ' + (document.getElementById('b-day').value || 1) + ' בחודש';
+  const t = collectTenants();
+  document.getElementById('sum-tenants').textContent = t.length ? t.length + ' דיירים' : 'לא הוסף עדיין';
+}
+
+// ── CREATE BUILDING ──
+async function createBuilding() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const btn = document.getElementById('create-btn');
+  btn.disabled = true; btn.textContent = 'יוצר...';
+
+  try {
+    const name      = document.getElementById('b-name').value.trim();
+    const city      = document.getElementById('b-city').value.trim();
+    const fee       = parseFloat(document.getElementById('b-fee').value) || 175;
+    const day       = parseInt(document.getElementById('b-day').value)   || 1;
+    const adminName = document.getElementById('b-admin-name').value.trim() || user.displayName;
+    const adminPhone= document.getElementById('b-admin-phone').value.trim();
+    const floors    = parseInt(document.getElementById('b-floors').value) || null;
+    const units     = parseInt(document.getElementById('b-units').value)  || null;
+
+    // 1. Create building
+    const bRef = await db.collection('buildings').add({
+      name, city, address: name,
+      adminUid:    user.uid,
+      adminName:   adminName || user.email,
+      adminPhone,
+      isPremium:   false,
+      monthlyFee:  fee,
+      collectionDay: day,
+      floors, units,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    createdBuildingId = bRef.id;
+
+    // 2. Add self as admin member
+    await bRef.collection('members').doc(user.uid).set({
+      role: 'admin', name: adminName || user.displayName, email: user.email,
+      joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // 3. Add tenants (batch)
+    const tenants = collectTenants();
+    if (tenants.length) {
+      const batch = db.batch();
+      tenants.forEach(t => {
+        const ref = bRef.collection('tenants').doc();
+        batch.set(ref, { ...t, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      });
+      await batch.commit();
+    }
+
+    // 4. Save user profile
+    await db.collection('users').doc(user.uid).set({
+      defaultBuilding: bRef.id,
+      name: adminName || user.displayName || '',
+      email: user.email, role: 'admin',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    // 5. Success
+    const tCount = tenants.length;
+    document.getElementById('success-msg').textContent =
+      `הבניין "${name}" נוצר` + (tCount ? ` עם ${tCount} דיירים` : '') + '!';
+    goStep(5);
+
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'צור את הבניין שלי 🚀';
+    alert('שגיאה: ' + e.message); console.error(e);
+  }
+}
+</script>
+</body>
+</html>
