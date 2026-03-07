@@ -1145,14 +1145,25 @@ auth.onAuthStateChanged(async user => {
 // ════════════════════════════════════════════════════
 async function loadBuilding() {
   let snap = await db.collection('buildings').where('adminUid','==',currentUser.uid).get();
-  
-  // אם ריק — חכה שנייה ונסה שוב (race condition אחרי הרשמה)
+
   if (snap.empty) {
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 2000));
     snap = await db.collection('buildings').where('adminUid','==',currentUser.uid).get();
   }
-  
-  if (snap.empty) { window.location.href = 'index.html'; return; }
+
+  // אם עדיין ריק — צור בניין ברירת מחדל במקום לעשות redirect
+  if (snap.empty) {
+    const ref = await db.collection('buildings').add({
+      name: 'הבניין שלי',
+      address: 'הבניין שלי',
+      adminUid: currentUser.uid,
+      adminName: currentUser.displayName || currentUser.email,
+      isPremium: false,
+      monthlyFee: 175,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    snap = await db.collection('buildings').where('adminUid','==',currentUser.uid).get();
+  }
 
   // Populate building selector
   const sel = document.getElementById('building-select');
