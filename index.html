@@ -449,7 +449,10 @@ function switchTab(tab) {
 // ─── AUTH STATE ───
 auth.onAuthStateChanged(user => {
   document.getElementById('loader').classList.add('hidden');
-  if (user) window.location.href = 'dashboard.html';
+  // רק עשה redirect אם אנחנו לא כבר ב-dashboard (מונע לולאה)
+  if (user && !document.referrer.includes('dashboard.html')) {
+    window.location.href = 'dashboard.html';
+  }
 });
 
 // ─── LOGIN ───
