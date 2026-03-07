@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>דף הבניין – SmartVaad</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+:root{--navy:#0b1520;--card:#162033;--card2:#1c2a40;--accent:#00c896;--accent2:#00a878;--blue:#4a9eff;--red:#ff4f5e;--gold:#f5a623;--text:#e8edf5;--muted:#7a90a8;--border:rgba(255,255,255,0.07);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;direction:rtl;}
+
+/* BG */
+.bg{position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 60% 40% at 50% 0%,rgba(0,200,150,.1) 0%,transparent 60%),var(--navy);}
+.bg::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,200,150,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,150,.015) 1px,transparent 1px);background-size:64px 64px;}
+
+/* LAYOUT */
+.wrap{position:relative;z-index:1;max-width:740px;margin:0 auto;padding:24px 16px 80px;}
+
+/* LOADER */
+#loader{position:fixed;inset:0;background:var(--navy);z-index:99;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
+#loader.hidden{display:none;}
+.ld-spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.ld-txt{font-size:14px;color:var(--muted);}
+
+/* NOT FOUND */
+#not-found{display:none;text-align:center;padding:80px 20px;}
+.nf-ico{font-size:64px;margin-bottom:16px;}
+.nf-t{font-size:22px;font-weight:800;margin-bottom:8px;}
+.nf-s{color:var(--muted);font-size:15px;}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:28px;padding:14px 18px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:16px;}
+.tb-logo{display:flex;align-items:center;gap:8px;}
+.tb-logo-ico{width:30px;height:30px;background:linear-gradient(135deg,var(--accent),var(--blue));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.tb-logo-name{font-size:14px;font-weight:900;background:linear-gradient(135deg,var(--accent),#fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.tb-sep{flex:1;}
+.tb-badge{font-size:11px;font-weight:700;color:var(--muted);background:rgba(255,255,255,.05);padding:4px 10px;border-radius:20px;border:1px solid var(--border);}
+
+/* BUILDING HEADER */
+.bld-header{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;margin-bottom:20px;position:relative;overflow:hidden;}
+.bld-header::before{content:'';position:absolute;top:-40px;left:-40px;width:200px;height:200px;background:radial-gradient(circle,rgba(0,200,150,.08) 0%,transparent 70%);}
+.bld-icon{font-size:48px;margin-bottom:12px;}
+.bld-name{font-size:26px;font-weight:900;margin-bottom:4px;}
+.bld-addr{font-size:14px;color:var(--muted);margin-bottom:18px;display:flex;align-items:center;gap:6px;}
+.bld-stats{display:flex;gap:0;}
+.bs{flex:1;text-align:center;padding:12px 8px;background:rgba(255,255,255,.04);border:1px solid var(--border);}
+.bs:first-child{border-radius:10px 0 0 10px;}.bs:last-child{border-radius:0 10px 10px 0;}
+.bs+.bs{border-right:none;}
+.bs-n{font-size:20px;font-weight:900;}.bs-l{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* SECTION */
+.section{margin-bottom:20px;}
+.sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.sec-title{font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;}
+.sec-count{font-size:12px;font-weight:700;color:var(--muted);background:rgba(255,255,255,.06);padding:3px 9px;border-radius:10px;}
+
+/* CARD */
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+.card-item{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;transition:background .15s;}
+.card-item:last-child{border-bottom:none;}
+.card-item:hover{background:rgba(255,255,255,.02);}
+.ci-ico{font-size:20px;flex-shrink:0;margin-top:2px;}
+.ci-body{flex:1;}
+.ci-title{font-size:14px;font-weight:700;margin-bottom:3px;}
+.ci-sub{font-size:12px;color:var(--muted);line-height:1.5;}
+.ci-time{font-size:11px;color:var(--muted);flex-shrink:0;margin-top:3px;}
+.ci-tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;flex-shrink:0;}
+.tag-open{background:rgba(255,79,94,.15);color:var(--red);}
+.tag-progress{background:rgba(245,166,35,.15);color:var(--gold);}
+.tag-done{background:rgba(0,200,150,.15);color:var(--accent);}
+
+/* OPEN REQUEST FORM */
+.req-form{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;}
+.rf-title{font-size:15px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.fi{width:100%;background:rgba(0,0,0,.3);border:1px solid var(--border);color:var(--text);font-family:'Heebo',sans-serif;font-size:14px;padding:11px 14px;border-radius:10px;outline:none;transition:border-color .15s;}
+.fi:focus{border-color:rgba(0,200,150,.4);}
+.fi::placeholder{color:var(--muted);}
+textarea.fi{resize:vertical;min-height:80px;}
+.fg{margin-bottom:12px;}
+.fl{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;letter-spacing:.4px;text-transform:uppercase;}
+.fi-row{display:flex;gap:10px;}
+.fi-row .fg{flex:1;}
+.btn-submit{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#000;font-family:'Heebo',sans-serif;font-size:14px;font-weight:800;padding:12px 24px;border-radius:10px;cursor:pointer;transition:all .2s;margin-top:4px;}
+.btn-submit:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,200,150,.3);}
+.btn-submit:disabled{opacity:.5;pointer-events:none;}
+
+/* EMPTY */
+.empty-state{padding:32px;text-align:center;color:var(--muted);font-size:13px;}
+.empty-ico{font-size:32px;margin-bottom:8px;}
+
+/* FOOTER */
+.pub-footer{text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid var(--border);}
+.pf-logo{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px;}
+.pf-text{font-size:12px;color:var(--muted);}
+.pf-link{color:var(--accent);text-decoration:none;font-weight:700;}
+
+/* TOAST */
+.toast{position:fixed;bottom:28px;right:50%;transform:translateX(50%);background:var(--card2);border:1px solid var(--border);padding:12px 22px;border-radius:12px;font-size:14px;font-weight:600;z-index:300;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:toastIn .3s ease;white-space:nowrap;}
+@keyframes toastIn{from{opacity:0;transform:translateX(50%) translateY(12px);}to{opacity:1;transform:translateX(50%) translateY(0);}}
+
+/* Mobile */
+@media(max-width:480px){
+  .wrap{padding:16px 12px 60px;}
+  .bld-stats{flex-wrap:wrap;}
+  .bs{min-width:48%;}
+  .bs:first-child{border-radius:10px 0 0 0;}.bs:nth-child(2){border-radius:0 10px 0 0;border-right:1px solid var(--border);}
+  .bs:nth-child(3){border-radius:0 0 0 10px;border-top:none;}.bs:last-child{border-radius:0 0 10px 0;border-right:1px solid var(--border);border-top:none;}
+  .fi-row{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<div class="bg"></div>
+
+<div id="loader">
+  <div class="ld-spin"></div>
+  <div class="ld-txt">טוען דף בניין...</div>
+</div>
+
+<div id="not-found">
+  <div class="nf-ico">🏚️</div>
+  <div class="nf-t">הבניין לא נמצא</div>
+  <div class="nf-s">הקישור אינו תקין או שהבניין הוסר מהמערכת</div>
+</div>
+
+<div class="wrap" id="main-content" style="display:none">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="tb-logo">
+      <div class="tb-logo-ico">🏢</div>
+      <div class="tb-logo-name">SmartVaad</div>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="tb-badge" id="tb-building-name">דף ציבורי</div>
+  </div>
+
+  <!-- BUILDING HEADER -->
+  <div class="bld-header">
+    <div class="bld-icon">🏢</div>
+    <div class="bld-name" id="bld-name">טוען...</div>
+    <div class="bld-addr">📍 <span id="bld-addr"></span></div>
+    <div class="bld-stats">
+      <div class="bs"><div class="bs-n" id="stat-tenants">—</div><div class="bs-l">דיירים</div></div>
+      <div class="bs"><div class="bs-n" id="stat-open">—</div><div class="bs-l">קריאות פתוחות</div></div>
+      <div class="bs"><div class="bs-n" id="stat-docs">—</div><div class="bs-l">מסמכים</div></div>
+      <div class="bs"><div class="bs-n" id="stat-fee">—</div><div class="bs-l">ועד חודשי</div></div>
+    </div>
+  </div>
+
+  <!-- BULLETIN -->
+  <div class="section">
+    <div class="sec-hd">
+      <div class="sec-title">📌 לוח מודעות</div>
+      <div class="sec-count" id="count-bulletin">0 מודעות</div>
+    </div>
+    <div class="card" id="bulletin-list">
+      <div class="empty-state"><div class="empty-ico">📭</div>אין מודעות כרגע</div>
+    </div>
+  </div>
+
+  <!-- OPEN REQUESTS -->
+  <div class="section">
+    <div class="sec-hd">
+      <div class="sec-title">🔧 קריאות שירות פתוחות</div>
+      <div class="sec-count" id="count-requests">0 קריאות</div>
+    </div>
+    <div class="card" id="requests-list">
+      <div class="empty-state"><div class="empty-ico">✅</div>אין קריאות פתוחות</div>
+    </div>
+  </div>
+
+  <!-- DOCUMENTS -->
+  <div class="section">
+    <div class="sec-hd">
+      <div class="sec-title">📄 מסמכים ציבוריים</div>
+      <div class="sec-count" id="count-docs">0 מסמכים</div>
+    </div>
+    <div class="card" id="docs-list">
+      <div class="empty-state"><div class="empty-ico">📂</div>אין מסמכים</div>
+    </div>
+  </div>
+
+  <!-- SUBMIT REQUEST FORM -->
+  <div class="section">
+    <div class="req-form">
+      <div class="rf-title">🔧 פתח קריאת שירות חדשה</div>
+      <div class="fg"><label class="fl">תיאור הבעיה *</label><textarea class="fi" id="req-desc" placeholder="תאר את הבעיה בקצרה..."></textarea></div>
+      <div class="fi-row">
+        <div class="fg"><label class="fl">שמך</label><input class="fi" id="req-name" type="text" placeholder="ישראל ישראלי"></div>
+        <div class="fg"><label class="fl">דירה</label><input class="fi" id="req-apt" type="text" placeholder="דירה 5"></div>
+      </div>
+      <div class="fg">
+        <label class="fl">דחיפות</label>
+        <select class="fi" id="req-urgency">
+          <option value="low">🟢 רגילה</option>
+          <option value="medium">🟡 בינונית</option>
+          <option value="urgent">🔴 דחופה</option>
+        </select>
+      </div>
+      <button class="btn-submit" id="req-submit" onclick="submitRequest()">שלח קריאה ←</button>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="pub-footer">
+    <div class="pf-logo">
+      <div style="width:24px;height:24px;background:linear-gradient(135deg,var(--accent),var(--blue));border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px">🏢</div>
+      <span style="font-size:14px;font-weight:800;background:linear-gradient(135deg,var(--accent),#fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">SmartVaad</span>
+    </div>
+    <div class="pf-text">ניהול ועד בית חכם · <a href="index.html" class="pf-link">הרשמה חינם</a></div>
+  </div>
+
+</div>
+
+<script src="js/firebase-config.js"></script>
+<script>
+// ── GET BUILDING ID FROM URL ──
+const params = new URLSearchParams(location.search);
+const buildingId = params.get('b');
+
+if (!buildingId) {
+  document.getElementById('loader').classList.add('hidden');
+  document.getElementById('not-found').style.display = 'block';
+} else {
+  loadBuilding();
+}
+
+async function loadBuilding() {
+  try {
+    const doc = await db.collection('buildings').doc(buildingId).get();
+    if (!doc.exists) {
+      document.getElementById('loader').classList.add('hidden');
+      document.getElementById('not-found').style.display = 'block';
+      return;
+    }
+
+    const b = doc.data();
+    document.title = b.name + ' – SmartVaad';
+    document.getElementById('bld-name').textContent = b.name;
+    document.getElementById('bld-addr').textContent = b.address || '';
+    document.getElementById('tb-building-name').textContent = b.name;
+    document.getElementById('stat-fee').textContent = b.monthlyFee ? '₪' + b.monthlyFee : '—';
+
+    // Load all collections in parallel
+    const [tenSnap, reqSnap, docSnap, bulSnap] = await Promise.all([
+      db.collection(`buildings/${buildingId}/tenants`).get(),
+      db.collection(`buildings/${buildingId}/requests`).where('status','!=','done').get(),
+      db.collection(`buildings/${buildingId}/documents`).get(),
+      db.collection(`buildings/${buildingId}/bulletin`).orderBy('createdAt','desc').get(),
+    ]);
+
+    document.getElementById('stat-tenants').textContent = tenSnap.size;
+    document.getElementById('stat-open').textContent = reqSnap.size;
+    document.getElementById('stat-docs').textContent = docSnap.size;
+
+    renderBulletin(bulSnap);
+    renderRequests(reqSnap);
+    renderDocs(docSnap);
+
+    document.getElementById('loader').classList.add('hidden');
+    document.getElementById('main-content').style.display = 'block';
+
+    // Realtime for bulletin & requests
+    db.collection(`buildings/${buildingId}/bulletin`).orderBy('createdAt','desc')
+      .onSnapshot(snap => renderBulletin(snap));
+    db.collection(`buildings/${buildingId}/requests`).where('status','!=','done')
+      .onSnapshot(snap => { renderRequests(snap); document.getElementById('stat-open').textContent = snap.size; });
+
+  } catch(e) {
+    document.getElementById('loader').classList.add('hidden');
+    document.getElementById('not-found').style.display = 'block';
+    console.error(e);
+  }
+}
+
+function renderBulletin(snap) {
+  const el = document.getElementById('bulletin-list');
+  const count = document.getElementById('count-bulletin');
+  if (snap.empty) {
+    count.textContent = '0 מודעות';
+    el.innerHTML = '<div class="empty-state"><div class="empty-ico">📭</div>אין מודעות כרגע</div>';
+    return;
+  }
+  count.textContent = snap.size + ' מודעות';
+  el.innerHTML = snap.docs.map(d => {
+    const b = d.data();
+    const time = b.createdAt ? formatTime(b.createdAt.toDate()) : '';
+    return `
+      <div class="card-item">
+        <div class="ci-ico">📌</div>
+        <div class="ci-body">
+          <div class="ci-title">${esc(b.title || '')}</div>
+          <div class="ci-sub">${esc(b.content || '')}</div>
+        </div>
+        <div class="ci-time">${time}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderRequests(snap) {
+  const el = document.getElementById('requests-list');
+  const count = document.getElementById('count-requests');
+  const open = snap.docs.filter(d => d.data().status !== 'done');
+  if (!open.length) {
+    count.textContent = '0 קריאות';
+    el.innerHTML = '<div class="empty-state"><div class="empty-ico">✅</div>אין קריאות פתוחות</div>';
+    return;
+  }
+  count.textContent = open.length + ' קריאות';
+  const tags = {open:'tag-open', in_progress:'tag-progress', done:'tag-done'};
+  const labels = {open:'פתוח', in_progress:'בטיפול', done:'טופל'};
+  el.innerHTML = open.map(d => {
+    const r = d.data();
+    const tagClass = tags[r.status] || 'tag-open';
+    const tagLabel = labels[r.status] || 'פתוח';
+    const time = r.createdAt ? formatTime(r.createdAt.toDate()) : '';
+    const urgColors = {urgent:'var(--red)', medium:'var(--gold)', low:'var(--blue)'};
+    const urgColor = urgColors[r.urgency] || 'var(--blue)';
+    return `
+      <div class="card-item">
+        <div style="width:4px;min-height:40px;border-radius:2px;flex-shrink:0;background:${urgColor}"></div>
+        <div class="ci-body">
+          <div class="ci-title">${esc(r.title || r.description || '')}</div>
+          <div class="ci-sub">${esc(r.requester || '')} ${r.apartment ? '· ' + esc(r.apartment) : ''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <span class="ci-tag ${tagClass}">${tagLabel}</span>
+          <span class="ci-time">${time}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderDocs(snap) {
+  const el = document.getElementById('docs-list');
+  const count = document.getElementById('count-docs');
+  if (snap.empty) {
+    count.textContent = '0 מסמכים';
+    el.innerHTML = '<div class="empty-state"><div class="empty-ico">📂</div>אין מסמכים</div>';
+    return;
+  }
+  count.textContent = snap.size + ' מסמכים';
+  el.innerHTML = snap.docs.map(d => {
+    const doc = d.data();
+    const time = doc.uploadedAt ? formatTime(doc.uploadedAt.toDate()) : '';
+    const link = doc.url ? `<a href="${doc.url}" target="_blank" style="color:var(--accent);font-size:12px;font-weight:700;text-decoration:none">פתח ←</a>` : '';
+    return `
+      <div class="card-item">
+        <div class="ci-ico">📄</div>
+        <div class="ci-body">
+          <div class="ci-title">${esc(doc.name || '')}</div>
+          <div class="ci-sub">${esc(doc.description || '')} ${link}</div>
+        </div>
+        <div class="ci-time">${time}</div>
+      </div>`;
+  }).join('');
+}
+
+async function submitRequest() {
+  const desc = document.getElementById('req-desc').value.trim();
+  const name = document.getElementById('req-name').value.trim();
+  const apt  = document.getElementById('req-apt').value.trim();
+  const urgency = document.getElementById('req-urgency').value;
+  const btn  = document.getElementById('req-submit');
+
+  if (!desc) { showToast('⚠️ נא לתאר את הבעיה'); return; }
+
+  btn.disabled = true; btn.textContent = 'שולח...';
+  try {
+    await db.collection(`buildings/${buildingId}/requests`).add({
+      title: desc.slice(0, 60),
+      description: desc,
+      requester: name || 'אנונימי',
+      apartment: apt,
+      urgency,
+      status: 'open',
+      source: 'public',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('req-desc').value = '';
+    document.getElementById('req-name').value = '';
+    document.getElementById('req-apt').value  = '';
+    showToast('✅ הקריאה נשלחה בהצלחה!');
+  } catch(e) {
+    showToast('❌ שגיאה: ' + e.message);
+  }
+  btn.disabled = false; btn.textContent = 'שלח קריאה ←';
+}
+
+// ── UTILS ──
+function esc(s){ const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
+
+function formatTime(date) {
+  const diff = Math.floor((Date.now() - date) / 1000);
+  if (diff < 60)    return 'הרגע';
+  if (diff < 3600)  return `לפני ${Math.floor(diff/60)} דק׳`;
+  if (diff < 86400) return `לפני ${Math.floor(diff/3600)} שע׳`;
+  const d = date.toLocaleDateString('he-IL',{day:'numeric',month:'short'});
+  return d;
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+</script>
+</body>
+</html>
