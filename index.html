@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartVaad – ניהול ועד בית חכם</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<style>
+:root{--navy:#0b1520;--card:#162033;--card2:#1c2a40;--accent:#00c896;--accent2:#00a878;--blue:#4a9eff;--red:#ff4f5e;--gold:#f5a623;--text:#e8edf5;--muted:#7a90a8;--border:rgba(255,255,255,0.07);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Heebo',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;direction:rtl;overflow-x:hidden;}
+
+#loader{position:fixed;inset:0;background:var(--navy);z-index:999;display:flex;align-items:center;justify-content:center;transition:opacity .4s;}
+#loader.hidden{opacity:0;pointer-events:none;}
+.ld{width:9px;height:9px;border-radius:50%;background:var(--accent);margin:0 4px;animation:ld .8s ease-in-out infinite alternate;}
+.ld:nth-child(2){animation-delay:.2s;}.ld:nth-child(3){animation-delay:.4s;}
+@keyframes ld{0%{transform:scale(.6);opacity:.4;}100%{transform:scale(1.2);opacity:1;}}
+
+.bg{position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 70% 50% at 30% -5%,rgba(0,200,150,.12) 0%,transparent 60%),radial-gradient(ellipse 50% 60% at 90% 90%,rgba(74,158,255,.08) 0%,transparent 55%),var(--navy);}
+.bg::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(0,200,150,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,150,.018) 1px,transparent 1px);background-size:72px 72px;}
+.orb{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0;}
+.orb1{width:600px;height:600px;background:rgba(0,200,150,.06);top:-200px;right:-100px;}
+.orb2{width:400px;height:400px;background:rgba(74,158,255,.05);bottom:-100px;left:-100px;}
+
+.page-wrap{position:relative;z-index:1;display:grid;grid-template-columns:1fr 440px;min-height:100vh;}
+
+/* ═══ HERO ═══ */
+.hero{display:flex;flex-direction:column;justify-content:center;padding:60px 60px 60px 72px;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:48px;animation:fadeUp .6s ease both;}
+.logo img{height:40px;width:40px;border-radius:12px;object-fit:cover;}
+.logo-name{font-size:22px;font-weight:900;background:linear-gradient(135deg,var(--accent),#fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+
+.badge{display:inline-flex;align-items:center;gap:8px;background:rgba(0,200,150,.1);border:1px solid rgba(0,200,150,.25);color:var(--accent);font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-bottom:22px;width:fit-content;animation:fadeUp .6s .1s ease both;}
+.pulse{width:7px;height:7px;background:var(--accent);border-radius:50%;animation:pulse 1.8s infinite;flex-shrink:0;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,200,150,.5);}50%{box-shadow:0 0 0 6px rgba(0,200,150,0);}}
+
+.hero h1{font-size:clamp(34px,3.4vw,52px);font-weight:900;line-height:1.1;margin-bottom:16px;animation:fadeUp .6s .15s ease both;}
+.hero h1 .hl{background:linear-gradient(135deg,var(--accent),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hero p{font-size:15px;color:var(--muted);line-height:1.75;max-width:440px;margin-bottom:36px;animation:fadeUp .6s .2s ease both;}
+
+/* Ticker */
+.ticker{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin-bottom:36px;max-width:520px;animation:fadeUp .6s .25s ease both;}
+.ticker-hd{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.t-item{display:flex;align-items:center;gap:10px;font-size:12px;padding:6px 0;border-bottom:1px solid var(--border);opacity:0;animation:tin .4s ease forwards;}
+.t-item:last-child{border-bottom:none;}
+@keyframes tin{from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:translateX(0);}}
+
+/* KPI row */
+.krow{display:flex;gap:0;margin-bottom:36px;max-width:480px;animation:fadeUp .6s .3s ease both;}
+.kbox{flex:1;padding:14px 18px;background:rgba(255,255,255,.03);border:1px solid var(--border);text-align:center;}
+.kbox:first-child{border-radius:12px 0 0 12px;}.kbox:last-child{border-radius:0 12px 12px 0;}
+.kbox+.kbox{border-right:none;}
+.kn{font-size:22px;font-weight:900;}.kl{font-size:11px;color:var(--muted);margin-top:3px;}
+
+/* Features */
+.feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:520px;animation:fadeUp .6s .35s ease both;}
+.fc{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;padding:13px 15px;display:flex;align-items:flex-start;gap:11px;transition:all .2s;}
+.fc:hover{background:rgba(255,255,255,.05);border-color:rgba(0,200,150,.2);transform:translateY(-2px);}
+.fc-ico{font-size:20px;flex-shrink:0;margin-top:1px;}
+.fc-t{font-size:13px;font-weight:700;}.fc-s{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.5;}
+.pro-tag{font-size:10px;background:rgba(245,166,35,.15);color:#f5a623;padding:1px 6px;border-radius:8px;margin-right:4px;}
+
+/* Social proof */
+.sp{display:flex;align-items:center;gap:14px;margin-top:28px;animation:fadeUp .6s .4s ease both;}
+.avs{display:flex;}
+.av{width:30px;height:30px;border-radius:50%;border:2px solid var(--navy);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-right:-8px;}
+.sp-txt{font-size:13px;color:var(--muted);}.sp-txt strong{color:var(--text);}
+.stars{color:#f5a623;font-size:13px;letter-spacing:-1px;}
+
+/* ═══ AUTH PANEL ═══ */
+.auth-panel{background:rgba(22,32,51,.93);border-right:1px solid var(--border);backdrop-filter:blur(32px);display:flex;flex-direction:column;justify-content:center;padding:48px 44px;animation:slideIn .5s ease both;}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+
+.ap-logo{display:flex;align-items:center;gap:10px;margin-bottom:32px;}
+.ap-logo img{height:32px;width:32px;border-radius:9px;object-fit:cover;}
+.ap-logo-name{font-size:16px;font-weight:900;background:linear-gradient(135deg,var(--accent),#fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+
+/* Demo banner */
+.demo-banner{background:linear-gradient(135deg,rgba(0,200,150,.1),rgba(74,158,255,.07));border:1px solid rgba(0,200,150,.22);border-radius:12px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:12px;}
+.db-ico{font-size:22px;}.db-body{flex:1;}
+.db-title{font-size:13px;font-weight:800;color:var(--accent);}
+.db-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.db-btn{background:var(--accent);color:#000;border:none;font-family:'Heebo',sans-serif;font-size:12px;font-weight:800;padding:7px 14px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0;}
+.db-btn:hover{background:var(--accent2);transform:scale(1.03);}
+
+.tabs{display:flex;gap:6px;background:rgba(0,0,0,.35);padding:5px;border-radius:12px;margin-bottom:24px;}
+.tab{flex:1;background:transparent;border:none;color:var(--muted);font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;padding:10px;border-radius:8px;cursor:pointer;transition:all .2s;}
+.tab.on{background:var(--card2);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.3);}
+
+.auth-title{font-size:20px;font-weight:900;margin-bottom:4px;}
+.auth-sub{font-size:12px;color:var(--muted);margin-bottom:22px;}
+
+.fg{margin-bottom:13px;}
+.fl{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;letter-spacing:.5px;text-transform:uppercase;}
+.fi{width:100%;background:rgba(0,0,0,.3);border:1px solid var(--border);color:var(--text);font-family:'Heebo',sans-serif;font-size:14px;padding:11px 14px;border-radius:10px;outline:none;transition:border-color .15s,box-shadow .15s;}
+.fi:focus{border-color:rgba(0,200,150,.45);box-shadow:0 0 0 3px rgba(0,200,150,.07);}
+.fi::placeholder{color:var(--muted);}
+
+.btn-auth{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#000;font-family:'Heebo',sans-serif;font-size:15px;font-weight:800;padding:13px;border-radius:11px;cursor:pointer;transition:all .2s;margin-top:6px;box-shadow:0 4px 20px rgba(0,200,150,.25);}
+.btn-auth:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,200,150,.35);}
+.btn-auth:disabled{opacity:.5;pointer-events:none;}
+
+.divider{display:flex;align-items:center;gap:12px;margin:15px 0;color:var(--muted);font-size:12px;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.btn-google{width:100%;background:transparent;border:1px solid var(--border);color:var(--text);font-family:'Heebo',sans-serif;font-size:13px;font-weight:600;padding:11px;border-radius:10px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px;}
+.btn-google:hover{background:rgba(255,255,255,.05);}
+
+.err{background:rgba(255,79,94,.1);border:1px solid rgba(255,79,94,.3);color:var(--red);font-size:12px;padding:9px 13px;border-radius:8px;margin-top:10px;display:none;}
+.err.show{display:block;}
+
+/* ═══ DEMO MODAL ═══ */
+.mov{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s;}
+.mov.open{opacity:1;pointer-events:all;}
+.mdm{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:560px;width:calc(100% - 28px);transform:scale(.94) translateY(12px);transition:transform .25s;max-height:92vh;overflow-y:auto;}
+.mov.open .mdm{transform:scale(1) translateY(0);}
+.mdm-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+.mdm-t{font-size:20px;font-weight:900;}
+.mdm-x{background:rgba(255,255,255,.08);border:none;color:var(--muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;}
+.mdm-x:hover{color:var(--text);background:rgba(255,255,255,.12);}
+
+.scr-nav{display:flex;gap:7px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px;}
+.snb{flex-shrink:0;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--muted);font-family:'Heebo',sans-serif;font-size:12px;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;transition:all .15s;}
+.snb.on{background:rgba(0,200,150,.15);border-color:rgba(0,200,150,.4);color:var(--accent);}
+
+.prev-area{background:var(--card2);border:1px solid var(--border);border-radius:14px;overflow:hidden;min-height:260px;}
+.prev-tb{background:rgba(0,0,0,.3);padding:9px 14px;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--border);}
+.pdot{width:7px;height:7px;border-radius:50%;}
+.prev-body{padding:14px;}
+.pkpis{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:12px;}
+.pkpi{background:rgba(255,255,255,.04);border-radius:8px;padding:9px 7px;text-align:center;}
+.pkv{font-size:17px;font-weight:900;}.pkl{font-size:9px;color:var(--muted);margin-top:2px;}
+.prow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.prow:last-child{border-bottom:none;}
+.pav{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.ptag{font-size:10px;padding:2px 7px;border-radius:5px;font-weight:700;}
+.tg{background:rgba(0,200,150,.15);color:var(--accent);}
+.tr{background:rgba(255,79,94,.15);color:var(--red);}
+.ty{background:rgba(245,166,35,.15);color:var(--gold);}
+
+.dm-cta{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#000;font-family:'Heebo',sans-serif;font-size:15px;font-weight:800;padding:14px;border-radius:12px;cursor:pointer;margin-top:20px;box-shadow:0 4px 20px rgba(0,200,150,.25);transition:all .2s;}
+.dm-cta:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,200,150,.35);}
+.dm-note{text-align:center;font-size:12px;color:var(--muted);margin-top:10px;}
+
+/* Responsive */
+@media(max-width:920px){.page-wrap{grid-template-columns:1fr;}.hero{display:none;}.auth-panel{border-right:none;padding:40px 28px;}}
+@media(max-width:480px){.auth-panel{padding:32px 18px 52px;}}
+</style>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+</head>
+<body>
+
+<div id="loader"><div class="ld"></div><div class="ld"></div><div class="ld"></div></div>
+<div class="bg"></div>
+<div class="orb orb1"></div><div class="orb orb2"></div>
+
+<div class="page-wrap">
+
+<!-- ════ HERO ════ -->
+<section class="hero">
+  <div class="logo">
+    <img src="assets/app-icon.png" alt="SmartVaad">
+    <div class="logo-name">SmartVaad</div>
+  </div>
+
+  <div class="badge"><span class="pulse"></span>גרסת בטא – כבר בשימוש בישראל</div>
+
+  <h1>ניהול ועד בית.<br><span class="hl">סוף סוף פשוט.</span></h1>
+  <p>הכל במקום אחד — דיירים, תשלומים, קריאות שירות ועוד.<br>ב-5 דקות הבניין שלך מנוהל בצורה מקצועית.</p>
+
+  <div class="ticker">
+    <div class="ticker-hd"><span class="pulse" style="width:6px;height:6px;"></span>פעילות אחרונה בבניינים</div>
+    <div id="ticker"></div>
+  </div>
+
+  <div class="krow">
+    <div class="kbox"><div class="kn" style="color:var(--accent)" id="c1">0</div><div class="kl">בניינים פעילים</div></div>
+    <div class="kbox"><div class="kn" style="color:var(--blue)" id="c2">₪0</div><div class="kl">נגבו החודש</div></div>
+    <div class="kbox"><div class="kn" style="color:var(--gold)" id="c3">0</div><div class="kl">דיירים רשומים</div></div>
+    <div class="kbox"><div class="kn" style="color:var(--accent)">חינם</div><div class="kl">להתחיל עכשיו</div></div>
+  </div>
+
+  <div class="feat-grid">
+    <div class="fc"><div class="fc-ico">👥</div><div><div class="fc-t">ניהול דיירים</div><div class="fc-s">רשימה, מידע, סטטוס תשלום</div></div></div>
+    <div class="fc"><div class="fc-ico">💳</div><div><div class="fc-t">גביה ומעקב</div><div class="fc-s">מי שילם, מי חייב, כמה נגבה</div></div></div>
+    <div class="fc"><div class="fc-ico">💬</div><div><div class="fc-t">הודעות לדיירים</div><div class="fc-s">לכולם, לחייבים, או לספציפי</div></div></div>
+    <div class="fc"><div class="fc-ico">🔧</div><div><div class="fc-t">קריאות שירות</div><div class="fc-s">פתיחה, מעקב, סגירה</div></div></div>
+    <div class="fc"><div class="fc-ico">📄</div><div><div class="fc-t">מסמכים</div><div class="fc-s">חוזים, פרוטוקולים, ועוד</div></div></div>
+    <div class="fc"><div class="fc-ico">📊</div><div><div class="fc-t">דוחות <span class="pro-tag">Pro</span></div><div class="fc-s">גרפים, PDF חודשי, ייצוא</div></div></div>
+  </div>
+
+  <div class="sp">
+    <div class="avs">
+      <div class="av" style="background:rgba(0,200,150,.2);color:var(--accent)">מ</div>
+      <div class="av" style="background:rgba(74,158,255,.2);color:var(--blue)">י</div>
+      <div class="av" style="background:rgba(245,166,35,.2);color:var(--gold)">ר</div>
+      <div class="av" style="background:rgba(155,89,255,.2);color:#9b59ff">ש</div>
+    </div>
+    <div class="sp-txt">
+      <div class="stars">★★★★★</div>
+      <div><strong>ועדי בית בישראל</strong> כבר מנהלים דרכנו</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════ AUTH ════ -->
+<aside class="auth-panel">
+
+  <div class="ap-logo">
+    <img src="assets/app-icon.png" alt="SV">
+    <div class="ap-logo-name">SmartVaad</div>
+  </div>
+
+  <div class="demo-banner">
+    <div class="db-ico">🎯</div>
+    <div class="db-body">
+      <div class="db-title">ראה איך זה עובד</div>
+      <div class="db-sub">סיור אינטראקטיבי ב-60 שניות</div>
+    </div>
+    <button class="db-btn" onclick="openDemo()">פתח דמו ←</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" id="tab-login" onclick="switchTab('login')">התחברות</button>
+    <button class="tab" id="tab-register" onclick="switchTab('register')">הרשמה חינם</button>
+  </div>
+
+  <!-- LOGIN -->
+  <div id="form-login">
+    <div class="auth-title">ברוך השב 👋</div>
+    <div class="auth-sub">התחבר לניהול הבניין שלך</div>
+    <div class="fg"><label class="fl">אימייל</label><input type="email" class="fi" id="login-email" placeholder="your@email.com" autocomplete="email"></div>
+    <div class="fg"><label class="fl">סיסמה</label><input type="password" class="fi" id="login-pass" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="btn-auth" id="login-btn" onclick="doLogin()">כניסה למערכת ←</button>
+    <div class="err" id="login-err"></div>
+    <div class="divider">או</div>
+    <button class="btn-google" onclick="doGoogleLogin()">
+      <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.29-8.16 2.29-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      כניסה עם Google
+    </button>
+    <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--muted)">עדיין אין לך חשבון? <span style="color:var(--accent);cursor:pointer;font-weight:700" onclick="switchTab('register')">הרשמה חינם ←</span></div>
+  </div>
+
+  <!-- REGISTER -->
+  <div id="form-register" style="display:none">
+    <div class="auth-title">בואו נתחיל 🚀</div>
+    <div class="auth-sub">הרשמה חינם — מוכן תוך 5 דקות</div>
+    <div class="fg"><label class="fl">שם מלא</label><input type="text" class="fi" id="reg-name" placeholder="ישראל ישראלי"></div>
+    <div class="fg"><label class="fl">אימייל</label><input type="email" class="fi" id="reg-email" placeholder="your@email.com" autocomplete="email"></div>
+    <div class="fg"><label class="fl">סיסמה</label><input type="password" class="fi" id="reg-pass" placeholder="לפחות 6 תווים" autocomplete="new-password"></div>
+    <div class="fg"><label class="fl">שם הבניין / כתובת</label><input type="text" class="fi" id="reg-building" placeholder="רח׳ הרצל 10, תל אביב"></div>
+    <div class="fg"><label class="fl">דמי ועד חודשיים (₪)</label><input type="number" class="fi" id="reg-fee" placeholder="175" min="0"></div>
+    <button class="btn-auth" id="register-btn" onclick="doRegister()">צור חשבון חינם ←</button>
+    <div class="err" id="register-err"></div>
+    <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--muted)">כבר יש לך חשבון? <span style="color:var(--accent);cursor:pointer;font-weight:700" onclick="switchTab('login')">כניסה ←</span></div>
+  </div>
+
+</aside>
+</div>
+
+<!-- ════ DEMO MODAL ════ -->
+<div class="mov" id="demo-modal" onclick="if(event.target.id==='demo-modal')closeDemo()">
+  <div class="mdm">
+    <div class="mdm-hd">
+      <div class="mdm-t">🎯 סיור בדמו</div>
+      <button class="mdm-x" onclick="closeDemo()">✕</button>
+    </div>
+    <div class="scr-nav" id="scr-nav">
+      <button class="snb on" onclick="showScr(0,this)">📊 סקירה כללית</button>
+      <button class="snb" onclick="showScr(1,this)">👥 דיירים</button>
+      <button class="snb" onclick="showScr(2,this)">💳 גביה</button>
+      <button class="snb" onclick="showScr(3,this)">🔧 קריאות</button>
+    </div>
+    <div class="prev-area" id="prev-area"></div>
+    <button class="dm-cta" onclick="closeDemo();switchTab('register')">התחל חינם עכשיו ← הקמה ב-5 דקות</button>
+    <div class="dm-note">✓ ללא כרטיס אשראי &nbsp;·&nbsp; ✓ ביטול בכל עת &nbsp;·&nbsp; ✓ תמיכה בעברית</div>
+  </div>
+</div>
+
+<script src="js/firebase-config.js"></script>
+<script>
+// ── TICKER ──
+const TICK = [
+  {i:'💰',t:'תשלום ₪175 נרשם – דירה 4, בניין ברנר 12',tm:'הרגע'},
+  {i:'👤',t:'דייר חדש הצטרף – דירה 7, בניין הרצל 22',tm:'לפני 2 דק׳'},
+  {i:'🔧',t:'קריאת שירות נפתחה – נזילה בחדר מדרגות',tm:'לפני 5 דק׳'},
+  {i:'📢',t:'הודעה נשלחה לכל הדיירים – ניקיון כניסה',tm:'לפני 8 דק׳'},
+  {i:'✅',t:'תשלום ₪200 נרשם – דירה 2, בניין ויצמן 5',tm:'לפני 11 דק׳'},
+  {i:'🔧',t:'קריאת שירות טופלה – תיקון מנעול חניה',tm:'לפני 14 דק׳'},
+  {i:'💰',t:'תשלום ₪150 נרשם – דירה 9, בניין רוטשילד 3',tm:'לפני 18 דק׳'},
+];
+let tIdx=0;
+function renderTick(){
+  const el=document.getElementById('ticker');
+  const items=TICK.slice(tIdx,tIdx+4);
+  el.innerHTML=items.map((e,i)=>`<div class="t-item" style="animation-delay:${i*.1}s"><span style="font-size:15px;flex-shrink:0">${e.i}</span><span style="flex:1">${e.t}</span><span style="font-size:10px;color:var(--muted);flex-shrink:0">${e.tm}</span></div>`).join('');
+}
+renderTick();
+setInterval(()=>{tIdx=(tIdx+1)%(TICK.length-3);renderTick();},5000);
+
+// ── COUNTERS ──
+function count(el,to,pre='',suf=''){
+  let n=0;const s=Math.ceil(to/40);
+  const t=setInterval(()=>{n=Math.min(n+s,to);el.textContent=pre+n.toLocaleString()+suf;if(n>=to)clearInterval(t);},40);
+}
+setTimeout(()=>{
+  count(document.getElementById('c1'),47);
+  count(document.getElementById('c3'),312);
+  const c2=document.getElementById('c2');
+  let n=0;const s=Math.ceil(34800/40);
+  const t=setInterval(()=>{n=Math.min(n+s,34800);c2.textContent='₪'+n.toLocaleString();if(n>=34800)clearInterval(t);},40);
+},700);
+
+// ── DEMO SCREENS ──
+const SCREENS=[
+  ()=>`<div class="prev-tb"><div class="pdot" style="background:var(--red)"></div><div class="pdot" style="background:var(--gold)"></div><div class="pdot" style="background:var(--accent)"></div><span style="font-size:11px;color:var(--muted);margin-right:8px">סקירה כללית</span></div>
+  <div class="prev-body">
+    <div class="pkpis"><div class="pkpi"><div class="pkv" style="color:var(--accent)">24</div><div class="pkl">דיירים</div></div><div class="pkpi"><div class="pkv" style="color:var(--red)">3</div><div class="pkl">קריאות</div></div><div class="pkpi"><div class="pkv" style="color:var(--gold)">₪3,500</div><div class="pkl">גביה</div></div><div class="pkpi"><div class="pkv" style="color:var(--red)">₪700</div><div class="pkl">חובות</div></div></div>
+    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px">פעילות אחרונה</div>
+    <div class="prow"><span style="font-size:14px">💰</span><span style="flex:1">תשלום נרשם – ירון מזרחי ₪175</span><span style="font-size:10px;color:var(--muted)">הרגע</span></div>
+    <div class="prow"><span style="font-size:14px">🔧</span><span style="flex:1">קריאה נפתחה – נזילה בדירה 4</span><span style="font-size:10px;color:var(--muted)">5 דק׳</span></div>
+    <div class="prow"><span style="font-size:14px">👤</span><span style="flex:1">דייר חדש נוסף – מרים לוי, דירה 1</span><span style="font-size:10px;color:var(--muted)">12 דק׳</span></div>
+  </div>`,
+
+  ()=>`<div class="prev-tb"><div class="pdot" style="background:var(--red)"></div><div class="pdot" style="background:var(--gold)"></div><div class="pdot" style="background:var(--accent)"></div><span style="font-size:11px;color:var(--muted);margin-right:8px">דיירים — 8 רשומים</span></div>
+  <div class="prev-body">
+    ${[{n:'מרים לוי',a:'דירה 1',s:'tg',sl:'שולם ✓'},{n:'יוסי כהן',a:'דירה 2',s:'tg',sl:'שולם ✓'},{n:'אמיר בן דוד',a:'דירה 4',s:'tr',sl:'חוב'},{n:'רחל שפירא',a:'דירה 5',s:'ty',sl:'ממתין'},{n:'נועה כץ',a:'דירה 7',s:'tr',sl:'חוב'}].map(t=>`
+    <div class="prow"><div class="pav" style="background:rgba(0,200,150,.15);color:var(--accent)">${t.n.slice(0,2)}</div><span style="flex:1;font-weight:600">${t.n}</span><span style="font-size:11px;color:var(--muted)">${t.a}</span><span class="ptag ${t.s}">${t.sl}</span></div>`).join('')}
+  </div>`,
+
+  ()=>`<div class="prev-tb"><div class="pdot" style="background:var(--red)"></div><div class="pdot" style="background:var(--gold)"></div><div class="pdot" style="background:var(--accent)"></div><span style="font-size:11px;color:var(--muted);margin-right:8px">גביה ותשלומים</span></div>
+  <div class="prev-body">
+    <div class="pkpis" style="grid-template-columns:1fr 1fr 1fr"><div class="pkpi"><div class="pkv" style="color:var(--accent)">₪3,500</div><div class="pkl">נגבה</div></div><div class="pkpi"><div class="pkv" style="color:var(--red)">₪700</div><div class="pkl">חוב</div></div><div class="pkpi"><div class="pkv">₪4,200</div><div class="pkl">יעד</div></div></div>
+    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px">חייבי ועד בית</div>
+    ${[{n:'אמיר בן דוד',a:'דירה 4',m:'₪175'},{n:'נועה כץ',a:'דירה 7',m:'₪175'},{n:'דן אברהם',a:'דירה 6',m:'₪350'}].map(d=>`
+    <div class="prow"><div class="pav" style="background:rgba(255,79,94,.12);color:var(--red)">${d.n.slice(0,2)}</div><span style="flex:1">${d.n} · ${d.a}</span><span style="color:var(--red);font-weight:700">${d.m}</span></div>`).join('')}
+  </div>`,
+
+  ()=>`<div class="prev-tb"><div class="pdot" style="background:var(--red)"></div><div class="pdot" style="background:var(--gold)"></div><div class="pdot" style="background:var(--accent)"></div><span style="font-size:11px;color:var(--muted);margin-right:8px">קריאות שירות</span></div>
+  <div class="prev-body">
+    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:10px">קריאות פתוחות</div>
+    ${[{t:'נזילה – חדר מדרגות',a:'דירה 4',c:'var(--red)',s:'פתוח',sc:'tr'},{t:'תיקון מנעול חניה',a:'חניון',c:'var(--gold)',s:'בטיפול',sc:'ty'},{t:'הדבקת מודעות בלובי',a:'כניסה',c:'var(--blue)',s:'פתוח',sc:'tr'}].map(r=>`
+    <div class="prow" style="align-items:flex-start">
+      <div style="width:4px;min-height:32px;border-radius:2px;flex-shrink:0;background:${r.c}"></div>
+      <div style="flex:1"><div style="font-size:12px;font-weight:700">${r.t}</div><div style="font-size:10px;color:var(--muted)">${r.a}</div></div>
+      <span class="ptag ${r.sc}">${r.s}</span>
+    </div>`).join('')}
+  </div>`
+];
+
+let demoTimer;
+function showScr(idx,btn){
+  document.querySelectorAll('.snb').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('prev-area').innerHTML=SCREENS[idx]();
+}
+function openDemo(){
+  clearInterval(demoTimer);
+  document.getElementById('demo-modal').classList.add('open');
+  showScr(0,document.querySelector('.snb'));
+  let si=0;
+  demoTimer=setInterval(()=>{
+    si=(si+1)%4;
+    showScr(si,document.querySelectorAll('.snb')[si]);
+  },3500);
+}
+function closeDemo(){document.getElementById('demo-modal').classList.remove('open');clearInterval(demoTimer);}
+
+// ── TAB SWITCH ──
+function switchTab(tab){
+  document.getElementById('form-login').style.display    = tab==='login'    ? 'block':'none';
+  document.getElementById('form-register').style.display = tab==='register' ? 'block':'none';
+  document.getElementById('tab-login').classList.toggle('on',    tab==='login');
+  document.getElementById('tab-register').classList.toggle('on', tab==='register');
+}
+
+// ── AUTH STATE ──
+auth.onAuthStateChanged(user=>{
+  document.getElementById('loader').classList.add('hidden');
+  if(user){const r=document.referrer;if(!r.includes('dashboard.html'))window.location.href='dashboard.html';}
+});
+
+// ── LOGIN ──
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  const btn=document.getElementById('login-btn');
+  const err=document.getElementById('login-err');
+  if(!email||!pass)return showErr(err,'נא למלא את כל השדות');
+  btn.disabled=true;btn.textContent='מתחבר...';err.classList.remove('show');
+  try{await auth.signInWithEmailAndPassword(email,pass);window.location.href='dashboard.html';}
+  catch(e){btn.disabled=false;btn.textContent='כניסה למערכת ←';const m={'auth/user-not-found':'אימייל לא קיים','auth/wrong-password':'סיסמה שגויה','auth/invalid-email':'אימייל לא תקין','auth/too-many-requests':'נסיונות רבים מדי'};showErr(err,m[e.code]||'שגיאה: '+e.message);}
+}
+
+// ── GOOGLE ──
+async function doGoogleLogin(){
+  try{
+    const r=await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    const snap=await db.collection('buildings').where('adminUid','==',r.user.uid).get();
+    if(snap.empty){await db.collection('buildings').add({name:r.user.displayName+"'s Building",address:'כתובת הבניין',adminUid:r.user.uid,adminName:r.user.displayName,isPremium:false,monthlyFee:175,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
+    window.location.href='dashboard.html';
+  }catch(e){showErr(document.getElementById('login-err'),'שגיאה בכניסה עם Google');}
+}
+
+// ── REGISTER ──
+async function doRegister(){
+  const name=document.getElementById('reg-name').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
+  const pass=document.getElementById('reg-pass').value;
+  const btn=document.getElementById('register-btn');
+  const err=document.getElementById('register-err');
+  if(!name||!email||!pass)return showErr(err,'נא למלא שם, אימייל וסיסמה');
+  if(pass.length<6)return showErr(err,'הסיסמה חייבת להכיל לפחות 6 תווים');
+  btn.disabled=true;btn.textContent='יוצר חשבון...';err.classList.remove('show');
+  try{
+    const cred=await auth.createUserWithEmailAndPassword(email,pass);
+    await cred.user.updateProfile({displayName:name});
+    await db.collection('users').doc(cred.user.uid).set({name,email,role:'admin',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    window.location.href='onboarding.html';
+  }catch(e){btn.disabled=false;btn.textContent='צור חשבון חינם ←';const m={'auth/email-already-in-use':'אימייל כבר רשום','auth/invalid-email':'אימייל לא תקין','auth/weak-password':'הסיסמה חלשה מדי'};showErr(err,m[e.code]||'שגיאה: '+e.message);}
+}
+
+function showErr(el,msg){el.textContent='⚠️ '+msg;el.classList.add('show');}
+document.addEventListener('keydown',e=>{if(e.key==='Enter'){if(document.getElementById('tab-login').classList.contains('on'))doLogin();else doRegister();}});
+</script>
+</body>
+</html>
